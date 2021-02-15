@@ -58,13 +58,22 @@ int main() {
 
 		glm::vec3 lightPos = glm::vec3(0.0f, 0.0f, 5.0f);
 		glm::vec3 lightCol = glm::vec3(0.9f, 0.85f, 0.5f);
-		float     lightAmbientPow = 0.05f;
+		float     lightAmbientPow = 1.5f;
 		float     lightSpecularPow = 1.0f;
 		glm::vec3 ambientCol = glm::vec3(1.0f);
 		float     ambientPow = 0.1f;
 		float     lightLinearFalloff = 0.09f;
 		float     lightQuadraticFalloff = 0.032f;
+	
 
+		//Bool variables that act as toggles for changing the lighting
+		bool ambientToggle = false;
+		bool specularToggle = false;
+		bool noLightingToggle = false;
+		bool ambient_And_Specular_Toggle = false;
+		bool TextureToggle = false;
+		//bool custom_Shader_Toggle = false;
+		
 		// These are our application / scene level uniforms that don't necessarily update
 		// every frame
 		shader->SetUniform("u_LightPos", lightPos);
@@ -76,36 +85,121 @@ int main() {
 		shader->SetUniform("u_LightAttenuationConstant", 1.0f);
 		shader->SetUniform("u_LightAttenuationLinear", lightLinearFalloff);
 		shader->SetUniform("u_LightAttenuationQuadratic", lightQuadraticFalloff);
+	
 
+		//set More uniform variables for lighting toggles
+		shader->SetUniform("u_AmbientToggle", (int)ambientToggle);
+		shader->SetUniform("u_SpecularToggle", (int)specularToggle);
+		shader->SetUniform("u_LightingOff", (int)noLightingToggle);
+		shader->SetUniform("u_AmbientAndSpecToggle", (int)ambient_And_Specular_Toggle);
+		//shader->SetUniform("u_CustomShaderToggle", (int)custom_Shader_Toggle);
+
+		//Create post effect objects
 		PostEffect* basicEffect;
 
 		int activeEffect = 0;
 		std::vector<PostEffect*> effects;
+		
+		BloomEffect* bloomEffect;
 
-		SepiaEffect* sepiaEffect;
-		GreyscaleEffect* greyscaleEffect;
-		ColorCorrectEffect* colorCorrectEffect;
+		
+		//SepiaEffect* sepiaEffect;
+		//GreyscaleEffect* greyscaleEffect;
+		//ColorCorrectEffect* colorCorrectEffect;
+
 		
 
 		// We'll add some ImGui controls to control our shader
 		BackendHandler::imGuiCallbacks.push_back([&]() {
+			
+			if (ImGui::Checkbox("No Lighting", &noLightingToggle))
+			{
+				noLightingToggle = true;
+				ambientToggle = false;
+				specularToggle = false;
+				ambient_And_Specular_Toggle = false;
+				//custom_Shader_Toggle = false;
+
+			}
+
+			if (ImGui::Checkbox("Ambient", &ambientToggle))
+			{
+				noLightingToggle = false;
+				ambientToggle = true;
+				specularToggle = false;
+				ambient_And_Specular_Toggle = false;
+				//custom_Shader_Toggle = false;
+
+			}
+
+			if (ImGui::Checkbox("Specular", &specularToggle))
+			{
+				noLightingToggle = false;
+				ambientToggle = false;
+				specularToggle = true;
+				ambient_And_Specular_Toggle = false;
+				//custom_Shader_Toggle = false;
+
+			}
+
+			if (ImGui::Checkbox("Ambient + Specular + Diffuse", &ambient_And_Specular_Toggle))
+			{
+				noLightingToggle = false;
+				ambientToggle = false;
+				specularToggle = false;
+				ambient_And_Specular_Toggle = true;
+				//custom_Shader_Toggle = false;
+			}
+
+			if (ImGui::Button("Textures On"))
+			{
+				// Enable texturing
+				TextureToggle = false;
+
+
+				//glEnable(GL_TEXTURE_2D);
+			}
+
+			if (ImGui::Button("Textures Off"))
+			{
+				// Enable texturing
+				//glDisable(GL_TEXTURE_2D);
+
+				TextureToggle = true;	
+		
+			}
+
+			//Re-set the unifrom variables in the shader after Imgui toggles
+			shader->SetUniform("u_AmbientToggle", (int)ambientToggle);
+			shader->SetUniform("u_SpecularToggle", (int)specularToggle);
+			shader->SetUniform("u_LightingOff", (int)noLightingToggle);
+			shader->SetUniform("u_AmbientAndSpecToggle", (int)ambient_And_Specular_Toggle);
+			shader->SetUniform("u_TextureToggle", (int)TextureToggle);
+		
+			//Imgui controls to change the value fo the threshold and the blur value for the bloom effect
 			if (ImGui::CollapsingHeader("Effect controls"))
 			{
 				ImGui::SliderInt("Chosen Effect", &activeEffect, 0, effects.size() - 1);
 
 				if (activeEffect == 0)
 				{
-					ImGui::Text("Active Effect: Sepia Effect");
+					ImGui::Text("Active Effect: Bloom Effect");
 
-					SepiaEffect* temp = (SepiaEffect*)effects[activeEffect];
-					float intensity = temp->GetIntensity();
+					BloomEffect* temp = (BloomEffect*)effects[activeEffect];
+					float threshold = temp->GetThreshold();
+					float passes = temp->GetPasses();
 
-					if (ImGui::SliderFloat("Intensity", &intensity, 0.0f, 1.0f))
+					if (ImGui::SliderFloat("Threshold", &threshold, 0.0f, 1.0f))
 					{
-						temp->SetIntensity(intensity);
+						temp->SetThreshold(threshold);
+					}
+
+					if (ImGui::SliderFloat("Blur Values", &passes, 0.0f, 10.0f))
+					{
+						temp->SetPasses(passes);
 					}
 				}
-				if (activeEffect == 1)
+				/*if (activeEffect == 1)
 				{
 					ImGui::Text("Active Effect: Greyscale Effect");
 					
@@ -129,15 +223,15 @@ int main() {
 					{
 						temp->SetLUT(LUT3D(std::string(input)));
 					}
-				}
+				}*/
 			}
-			if (ImGui::CollapsingHeader("Environment generation"))
+			/*if (ImGui::CollapsingHeader("Environment generation"))
 			{
 				if (ImGui::Button("Regenerate Environment", ImVec2(200.0f, 40.0f)))
 				{
 					EnvironmentGenerator::RegenerateEnvironment();
 				}
-			}
+			}*/
 			if (ImGui::CollapsingHeader("Scene Level Lighting Settings"))
 			{
 				if (ImGui::ColorPicker3("Ambient Color", glm::value_ptr(ambientCol))) {
@@ -168,11 +262,11 @@ int main() {
 					shader->SetUniform("u_LightAttenuationQuadratic", lightQuadraticFalloff);
 				}
 			}
-
-			auto name = controllables[selectedVao].get<GameObjectTag>().Name;
-			ImGui::Text(name.c_str());
-			auto behaviour = BehaviourBinding::Get<SimpleMoveBehaviour>(controllables[selectedVao]);
-			ImGui::Checkbox("Relative Rotation", &behaviour->Relative);
+			
+			//auto name = controllables[selectedVao].get<GameObjectTag>().Name;
+			//ImGui::Text(name.c_str());
+			//auto behaviour = BehaviourBinding::Get<SimpleMoveBehaviour>(controllables[selectedVao]);
+			//ImGui::Checkbox("Relative Rotation", &behaviour->Relative);
 
 			ImGui::Text("Q/E -> Yaw\nLeft/Right -> Roll\nUp/Down -> Pitch\nY -> Toggle Mode");
 		
@@ -192,7 +286,7 @@ int main() {
 
 		// GL states
 		glEnable(GL_DEPTH_TEST);
-		glEnable(GL_CULL_FACE);
+		//glEnable(GL_CULL_FACE);
 		glDepthFunc(GL_LEQUAL); // New 
 
 		#pragma region TEXTURE LOADING
@@ -221,6 +315,110 @@ int main() {
 		texture2->Clear();
 
 		#pragma endregion
+
+#pragma region Police Car texture
+		
+		//Load in textures for Police Car Obj
+		Texture2DData::sptr policeCarDiffuseMap = Texture2DData::LoadFromFile("images/Police_Car_Texture_FIXED.png");
+		//Create New texture to be applied to Police Car.obj
+		Texture2D::sptr policeCarDiffuse = Texture2D::Create();
+		policeCarDiffuse->LoadData(policeCarDiffuseMap);
+	
+		//Create empty texture
+		Texture2DDescription policeCarDesc = Texture2DDescription();
+		policeCarDesc.Width = 1;
+		policeCarDesc.Height = 1;
+		policeCarDesc.Format = InternalFormat::RGB8;
+		Texture2D::sptr policeCarTexture = Texture2D::Create(policeCarDesc);
+
+#pragma endregion
+
+#pragma region Muscle Car Texture
+
+		//Load in textures for Muscle Car Obj
+		Texture2DData::sptr muscleCarDiffuseMap = Texture2DData::LoadFromFile("images/Muscle_Car_Texture.png");
+		//Create New texture to be applied to Police Car.obj
+		Texture2D::sptr muscleCarDiffuse = Texture2D::Create();
+		muscleCarDiffuse->LoadData(muscleCarDiffuseMap);
+
+		//Create empty texture
+		Texture2DDescription muscleCarDesc = Texture2DDescription();
+		muscleCarDesc.Width = 1;
+		muscleCarDesc.Height = 1;
+		muscleCarDesc.Format = InternalFormat::RGB8;
+		Texture2D::sptr muscleCarTexture = Texture2D::Create(muscleCarDesc);
+
+#pragma endregion
+
+#pragma region Buildings Textures
+		//Load in textures for Building Obj
+		Texture2DData::sptr buildingDiffuseMap = Texture2DData::LoadFromFile("images/Hotel_Texture.png");
+		//Create New texture to be applied to Building.obj
+		Texture2D::sptr buildingDiffuse = Texture2D::Create();
+		buildingDiffuse->LoadData(buildingDiffuseMap);
+
+		//Create empty texture
+		Texture2DDescription buildingDesc = Texture2DDescription();
+		buildingDesc.Width = 1;
+		buildingDesc.Height = 1;
+		buildingDesc.Format = InternalFormat::RGB8;
+		Texture2D::sptr buildingTexture = Texture2D::Create(buildingDesc);
+
+
+#pragma endregion
+
+#pragma region House Textures
+		//Load in textures for Building Obj
+		Texture2DData::sptr houseDiffuseMap = Texture2DData::LoadFromFile("images/House_Texture4.png");
+		//Create New texture to be applied to Building.obj
+		Texture2D::sptr houseDiffuse = Texture2D::Create();
+		houseDiffuse->LoadData(houseDiffuseMap);
+
+		//Create empty texture
+		Texture2DDescription houseDesc = Texture2DDescription();
+		houseDesc.Width = 1;
+		houseDesc.Height = 1;
+		houseDesc.Format = InternalFormat::RGB8;
+		Texture2D::sptr houseTexture = Texture2D::Create(houseDesc);
+
+
+#pragma endregion
+
+#pragma region House 2 Texture
+		//Load in textures for Building Obj
+		Texture2DData::sptr house2DiffuseMap = Texture2DData::LoadFromFile("images/House_Texture2.png");
+		//Create New texture to be applied to Building.obj
+		Texture2D::sptr house2Diffuse = Texture2D::Create();
+		house2Diffuse->LoadData(house2DiffuseMap);
+
+		//Create empty texture
+		Texture2DDescription house2Desc = Texture2DDescription();
+		house2Desc.Width = 1;
+		house2Desc.Height = 1;
+		house2Desc.Format = InternalFormat::RGB8;
+		Texture2D::sptr house2Texture = Texture2D::Create(house2Desc);
+
+
+#pragma endregion
+
+#pragma region Plane Texture
+		//Load in textures for Building Obj
+		Texture2DData::sptr planeDiffuseMap = Texture2DData::LoadFromFile("images/Plane UV's Fixed.png");
+		//Create New texture to be applied to Building.obj
+		Texture2D::sptr planeDiffuse = Texture2D::Create();
+		planeDiffuse->LoadData(planeDiffuseMap);
+
+		//Create empty texture
+		Texture2DDescription planeDesc = Texture2DDescription();
+		planeDesc.Width = 1;
+		planeDesc.Height = 1;
+		planeDesc.Format = InternalFormat::RGB8;
+		Texture2D::sptr planeTexture = Texture2D::Create(planeDesc);
+
+
+#pragma endregion
+
+
 
 		///////////////////////////////////// Scene Generation //////////////////////////////////////////////////
 		#pragma region Scene Generation
@@ -267,22 +465,247 @@ int main() {
 		simpleFloraMat->Set("u_Shininess", 8.0f);
 		simpleFloraMat->Set("u_TextureMix", 0.0f);
 
+		//New Materials being Created for Midterm Obj's
+		ShaderMaterial::sptr policeCarMat = ShaderMaterial::Create();
+		policeCarMat->Shader = shader;
+		policeCarMat->Set("s_Diffuse", policeCarDiffuse);
+		policeCarMat->Set("s_Specular", policeCarDiffuse);
+		policeCarMat->Set("u_Shininess", 8.0f);
+		policeCarMat->Set("u_TextureMix", 0.0f);
+
+		ShaderMaterial::sptr muscleCarMat = ShaderMaterial::Create();
+		muscleCarMat->Shader = shader;
+		muscleCarMat->Set("s_Diffuse", muscleCarDiffuse);
+		muscleCarMat->Set("s_Specular",muscleCarDiffuse);
+		muscleCarMat->Set("u_Shininess", 8.0f);
+		muscleCarMat->Set("u_TextureMix", 0.0f);
+
+		ShaderMaterial::sptr buildingMat = ShaderMaterial::Create();
+		buildingMat->Shader = shader;
+		buildingMat->Set("s_Diffuse", buildingDiffuse);
+		buildingMat->Set("s_Specular", buildingDiffuse);
+		buildingMat->Set("u_Shininess", 8.0f);
+		buildingMat->Set("u_TextureMix", 0.0f);
+
+		ShaderMaterial::sptr houseMat = ShaderMaterial::Create();
+		houseMat->Shader = shader;
+		houseMat->Set("s_Diffuse", houseDiffuse);
+		houseMat->Set("s_Specular", houseDiffuse);
+		houseMat->Set("u_Shininess", 8.0f);
+		houseMat->Set("u_TextureMix", 0.0f);
+
+		ShaderMaterial::sptr house2Mat = ShaderMaterial::Create();
+		house2Mat->Shader = shader;
+		house2Mat->Set("s_Diffuse", house2Diffuse);
+		house2Mat->Set("s_Specular", house2Diffuse);
+		house2Mat->Set("u_Shininess", 8.0f);
+		house2Mat->Set("u_TextureMix", 0.0f);
+
+
+		ShaderMaterial::sptr planeMat = ShaderMaterial::Create();
+		planeMat->Shader = shader;
+		planeMat->Set("s_Diffuse", planeDiffuse);
+		planeMat->Set("s_Specular", planeDiffuse);
+		planeMat->Set("u_Shininess", 8.0f);
+		planeMat->Set("u_TextureMix", 0.0f);
+
 		GameObject obj1 = scene->CreateEntity("Ground"); 
 		{
 			VertexArrayObject::sptr vao = ObjLoader::LoadFromFile("models/plane.obj");
-			obj1.emplace<RendererComponent>().SetMesh(vao).SetMaterial(grassMat);
+			obj1.emplace<RendererComponent>().SetMesh(vao).SetMaterial(planeMat);
+			obj1.get<Transform>().SetLocalRotation(00.0f, 0.0f, 180.0f);
 		}
 
-		GameObject obj2 = scene->CreateEntity("monkey_quads");
+		//Load in New OBJ's
+		GameObject obj2 = scene->CreateEntity("Police Car");
+		{
+			VertexArrayObject::sptr vao = ObjLoader::LoadFromFile("models/Police_Car_UPDATED.obj");
+			obj2.emplace<RendererComponent>().SetMesh(vao).SetMaterial(policeCarMat);
+			obj2.get<Transform>().SetLocalPosition(-3.5f, 1.0f, 0.0f);
+			obj2.get<Transform>().SetLocalRotation(90.0f, 0.0f, 180.0f);
+			obj2.get<Transform>().SetLocalScale(1.0f, 1.0f, 1.0f);
+	
+			//Bind returns a smart pointer to the behaviour that was added
+			auto pathing = BehaviourBinding::Bind<FollowPathBehaviour>(obj2);
+			//Set up path for the object to follow
+			pathing->Points.push_back({ 17.0f, 1.0f, 0.0f });
+			pathing->Points.push_back({ 17.0f, 18.0f, 0.0f });
+			pathing->Points.push_back({ -17.0f, 18.0f, 0.0f });
+			pathing->Points.push_back({ -17.0f, 1.1f, 0.0f });
+			pathing->Speed = 5.0f;
+		}
+
+		GameObject obj3 = scene->CreateEntity("Muscle Car");
+		{
+			VertexArrayObject::sptr vao = ObjLoader::LoadFromFile("models/Muscle_Car.obj");
+			obj3.emplace<RendererComponent>().SetMesh(vao).SetMaterial(muscleCarMat);
+			obj3.get<Transform>().SetLocalPosition(2.0f, 1.0f, 0.0f);
+			obj3.get<Transform>().SetLocalRotation(90.0f, 0.0f, 180.0f);
+			obj3.get<Transform>().SetLocalScale(1.0f, 1.0f, 1.0f);
+			
+
+			//Bind returns a smart pointer to the behaviour that was added
+			auto pathing = BehaviourBinding::Bind<FollowPathBehaviour>(obj3);
+			//Set up path for the object to follow
+			pathing->Points.push_back({17.0f, 1.0f, 0.0f });
+			pathing->Points.push_back({ 17.0f, 18.0f, 0.0f });
+			pathing->Points.push_back({ -17.0f, 18.0f, 0.0f });
+			pathing->Points.push_back({ -17.0f, 1.1f, 0.0f });
+			pathing->Speed = 5.0f;
+		}
+
+		GameObject obj4 = scene->CreateEntity("Building");
+		{
+			VertexArrayObject::sptr vao = ObjLoader::LoadFromFile("models/Hotel.obj");
+			obj4.emplace<RendererComponent>().SetMesh(vao).SetMaterial(buildingMat);
+			obj4.get<Transform>().SetLocalPosition(7.0f, -3.5f, 0.0f);
+			obj4.get<Transform>().SetLocalRotation(90.0f, 0.0f, 180.0f);
+			obj4.get<Transform>().SetLocalScale(2.5f, 2.5f, 2.5f);
+			BehaviourBinding::BindDisabled<SimpleMoveBehaviour>(obj4);
+		}
+
+
+		GameObject obj5 = scene->CreateEntity("Building");
+		{
+			VertexArrayObject::sptr vao = ObjLoader::LoadFromFile("models/Hotel.obj");
+			obj5.emplace<RendererComponent>().SetMesh(vao).SetMaterial(buildingMat);
+			obj5.get<Transform>().SetLocalPosition(12.5f, -3.5f, 0.0f);
+			obj5.get<Transform>().SetLocalRotation(90.0f, 0.0f, 180.0f);
+			obj5.get<Transform>().SetLocalScale(2.5f, 2.5f, 2.5f);
+			BehaviourBinding::BindDisabled<SimpleMoveBehaviour>(obj5);
+		}
+
+		GameObject obj6 = scene->CreateEntity("Building");
+		{
+			VertexArrayObject::sptr vao = ObjLoader::LoadFromFile("models/Hotel.obj");
+			obj6.emplace<RendererComponent>().SetMesh(vao).SetMaterial(buildingMat);
+			obj6.get<Transform>().SetLocalPosition(-7.0f, -3.5f, 0.0f);
+			obj6.get<Transform>().SetLocalRotation(90.0f, 0.0f, 180.0f);
+			obj6.get<Transform>().SetLocalScale(2.5f, 2.5f, 2.5f);
+			BehaviourBinding::BindDisabled<SimpleMoveBehaviour>(obj6);
+		}
+
+		GameObject obj7 = scene->CreateEntity("Building");
+		{
+			VertexArrayObject::sptr vao = ObjLoader::LoadFromFile("models/Hotel.obj");
+			obj7.emplace<RendererComponent>().SetMesh(vao).SetMaterial(buildingMat);
+			obj7.get<Transform>().SetLocalPosition(-12.5f, -3.5f, 0.0f);
+			obj7.get<Transform>().SetLocalRotation(90.0f, 0.0f, 180.0f);
+			obj7.get<Transform>().SetLocalScale(2.5f, 2.5f, 2.5f);
+			BehaviourBinding::BindDisabled<SimpleMoveBehaviour>(obj7);
+		}
+
+		GameObject obj8 = scene->CreateEntity("Building");
+		{
+			VertexArrayObject::sptr vao = ObjLoader::LoadFromFile("models/Building.obj");
+			obj8.emplace<RendererComponent>().SetMesh(vao).SetMaterial(buildingMat);
+			obj8.get<Transform>().SetLocalPosition(7.0f, -9.5f, 0.0f);
+			obj8.get<Transform>().SetLocalRotation(90.0f, 0.0f, 270.0f);
+			obj8.get<Transform>().SetLocalScale(2.5f, 2.5f, 2.5f);
+			BehaviourBinding::BindDisabled<SimpleMoveBehaviour>(obj8);
+		}
+
+		GameObject obj9 = scene->CreateEntity("Building");
+		{
+			VertexArrayObject::sptr vao = ObjLoader::LoadFromFile("models/Building.obj");
+			obj9.emplace<RendererComponent>().SetMesh(vao).SetMaterial(buildingMat);
+			obj9.get<Transform>().SetLocalPosition(-7.0f, -9.5f, 0.0f);
+			obj9.get<Transform>().SetLocalRotation(90.0f, 0.0f, 90.0f);
+			obj9.get<Transform>().SetLocalScale(2.5f, 2.5f, 2.5f);
+			BehaviourBinding::BindDisabled<SimpleMoveBehaviour>(obj9);
+		}
+
+		GameObject obj10 = scene->CreateEntity("Building");
+		{
+			VertexArrayObject::sptr vao = ObjLoader::LoadFromFile("models/Building.obj");
+			obj10.emplace<RendererComponent>().SetMesh(vao).SetMaterial(buildingMat);
+			obj10.get<Transform>().SetLocalPosition(12.5f, -9.5f, 0.0f);
+			obj10.get<Transform>().SetLocalRotation(90.0f, 0.0f, 90.0f);
+			obj10.get<Transform>().SetLocalScale(2.5f, 2.5f, 2.5f);
+			BehaviourBinding::BindDisabled<SimpleMoveBehaviour>(obj10);
+		}
+
+		GameObject obj11 = scene->CreateEntity("Building");
+		{
+			VertexArrayObject::sptr vao = ObjLoader::LoadFromFile("models/Building.obj");
+			obj11.emplace<RendererComponent>().SetMesh(vao).SetMaterial(buildingMat);
+			obj11.get<Transform>().SetLocalPosition(-12.5f, -9.5f, 0.0f);
+			obj11.get<Transform>().SetLocalRotation(90.0f, 0.0f, 270.0f);
+			obj11.get<Transform>().SetLocalScale(2.5f, 2.5f, 2.5f);
+			BehaviourBinding::BindDisabled<SimpleMoveBehaviour>(obj11);
+		}
+
+		GameObject obj12 = scene->CreateEntity("House");
+		{
+			VertexArrayObject::sptr vao = ObjLoader::LoadFromFile("models/House.obj");
+			obj12.emplace<RendererComponent>().SetMesh(vao).SetMaterial(houseMat);
+			obj12.get<Transform>().SetLocalPosition(-12.5f, 9.5f, 0.0f);
+			obj12.get<Transform>().SetLocalRotation(90.0f, 0.0f, 270.0f);
+			obj12.get<Transform>().SetLocalScale(2.5f, 2.5f, 2.5f);
+			BehaviourBinding::BindDisabled<SimpleMoveBehaviour>(obj12);
+		}
+
+		GameObject obj13 = scene->CreateEntity("House");
+		{
+			VertexArrayObject::sptr vao = ObjLoader::LoadFromFile("models/House.obj");
+			obj13.emplace<RendererComponent>().SetMesh(vao).SetMaterial(houseMat);
+			obj13.get<Transform>().SetLocalPosition(-7.0f, 9.5f, 0.0f);
+			obj13.get<Transform>().SetLocalRotation(90.0f, 0.0f, 90.0f);
+			obj13.get<Transform>().SetLocalScale(2.5f, 2.5f, 2.5f);
+			BehaviourBinding::BindDisabled<SimpleMoveBehaviour>(obj13);
+		}
+
+
+		GameObject obj14 = scene->CreateEntity("House");
+		{
+			VertexArrayObject::sptr vao = ObjLoader::LoadFromFile("models/House.obj");
+			obj14.emplace<RendererComponent>().SetMesh(vao).SetMaterial(houseMat);
+			obj14.get<Transform>().SetLocalPosition(7.0f, 9.5f, 0.0f);
+			obj14.get<Transform>().SetLocalRotation(90.0f, 0.0f, 270.0f);
+			obj14.get<Transform>().SetLocalScale(2.5f, 2.5f, 2.5f);
+			BehaviourBinding::BindDisabled<SimpleMoveBehaviour>(obj14);
+		}
+
+		GameObject obj15 = scene->CreateEntity("House_With_Garage");
+		{
+			VertexArrayObject::sptr vao = ObjLoader::LoadFromFile("models/House.obj");
+			obj15.emplace<RendererComponent>().SetMesh(vao).SetMaterial(houseMat);
+			obj15.get<Transform>().SetLocalPosition(12.5f, 9.5f, 0.0f);
+			obj15.get<Transform>().SetLocalRotation(90.0f, 0.0f, 90.0f);
+			obj15.get<Transform>().SetLocalScale(2.5f, 2.5f, 2.5f);
+			BehaviourBinding::BindDisabled<SimpleMoveBehaviour>(obj15);
+		}
+
+		GameObject obj16 = scene->CreateEntity("House");
+		{
+			VertexArrayObject::sptr vao = ObjLoader::LoadFromFile("models/House2.obj");
+			obj16.emplace<RendererComponent>().SetMesh(vao).SetMaterial(house2Mat);
+			obj16.get<Transform>().SetLocalPosition(10.0f, 14.5f, 0.0f);
+			obj16.get<Transform>().SetLocalRotation(90.0f, 0.0f, 90.0f);
+			obj16.get<Transform>().SetLocalScale(2.5f, 2.5f, 2.5f);
+			BehaviourBinding::BindDisabled<SimpleMoveBehaviour>(obj16);
+		}
+
+		GameObject obj17 = scene->CreateEntity("House");
+		{
+			VertexArrayObject::sptr vao = ObjLoader::LoadFromFile("models/House2.obj");
+			obj17.emplace<RendererComponent>().SetMesh(vao).SetMaterial(house2Mat);
+			obj17.get<Transform>().SetLocalPosition(-10.0f, 14.5f, 0.0f);
+			obj17.get<Transform>().SetLocalRotation(90.0f, 0.0f, 90.0f);
+			obj17.get<Transform>().SetLocalScale(2.5f, 2.5f, 2.5f);
+			BehaviourBinding::BindDisabled<SimpleMoveBehaviour>(obj17);
+		}
+
+		/*GameObject obj2 = scene->CreateEntity("monkey_quads");
 		{
 			VertexArrayObject::sptr vao = ObjLoader::LoadFromFile("models/monkey_quads.obj");
 			obj2.emplace<RendererComponent>().SetMesh(vao).SetMaterial(stoneMat);
 			obj2.get<Transform>().SetLocalPosition(0.0f, 0.0f, 2.0f);
 			obj2.get<Transform>().SetLocalRotation(0.0f, 0.0f, -90.0f);
 			BehaviourBinding::BindDisabled<SimpleMoveBehaviour>(obj2);
-		}
+		}*/
 
-		std::vector<glm::vec2> allAvoidAreasFrom = { glm::vec2(-4.0f, -4.0f) };
+	/*	std::vector<glm::vec2> allAvoidAreasFrom = { glm::vec2(-4.0f, -4.0f) };
 		std::vector<glm::vec2> allAvoidAreasTo = { glm::vec2(4.0f, 4.0f) };
 
 		std::vector<glm::vec2> rockAvoidAreasFrom = { glm::vec2(-3.0f, -3.0f), glm::vec2(-19.0f, -19.0f), glm::vec2(5.0f, -19.0f),
@@ -290,15 +713,15 @@ int main() {
 		std::vector<glm::vec2> rockAvoidAreasTo = { glm::vec2(3.0f, 3.0f), glm::vec2(19.0f, -5.0f), glm::vec2(19.0f, 19.0f),
 														glm::vec2(19.0f, 19.0f), glm::vec2(-5.0f, 19.0f) };
 		glm::vec2 spawnFromHere = glm::vec2(-19.0f, -19.0f);
-		glm::vec2 spawnToHere = glm::vec2(19.0f, 19.0f);
+		glm::vec2 spawnToHere = glm::vec2(19.0f, 19.0f);*/
 
-		EnvironmentGenerator::AddObjectToGeneration("models/simplePine.obj", simpleFloraMat, 150,
+	/*	EnvironmentGenerator::AddObjectToGeneration("models/simplePine.obj", simpleFloraMat, 150,
 			spawnFromHere, spawnToHere, allAvoidAreasFrom, allAvoidAreasTo);
 		EnvironmentGenerator::AddObjectToGeneration("models/simpleTree.obj", simpleFloraMat, 150,
 			spawnFromHere, spawnToHere, allAvoidAreasFrom, allAvoidAreasTo);
 		EnvironmentGenerator::AddObjectToGeneration("models/simpleRock.obj", simpleFloraMat, 40,
 			spawnFromHere, spawnToHere, rockAvoidAreasFrom, rockAvoidAreasTo);
-		EnvironmentGenerator::GenerateEnvironment();
+		EnvironmentGenerator::GenerateEnvironment();*/
 
 		// Create an object to be our camera
 		GameObject cameraObject = scene->CreateEntity("Camera");
@@ -314,7 +737,7 @@ int main() {
 			camera.SetOrthoHeight(3.0f);
 			BehaviourBinding::Bind<CameraControlBehaviour>(cameraObject);
 		}
-
+		
 		int width, height;
 		glfwGetWindowSize(BackendHandler::window, &width, &height);
 
@@ -324,7 +747,15 @@ int main() {
 			basicEffect->Init(width, height);
 		}
 
-		GameObject sepiaEffectObject = scene->CreateEntity("Sepia Effect");
+		GameObject bloomEffectObject = scene->CreateEntity("Bloom Effect");
+		{
+			bloomEffect = &bloomEffectObject.emplace<BloomEffect>();
+			bloomEffect->Init(width, height);
+
+		}
+		effects.push_back(bloomEffect);
+
+		/*GameObject sepiaEffectObject = scene->CreateEntity("Sepia Effect");
 		{
 			sepiaEffect = &sepiaEffectObject.emplace<SepiaEffect>();
 			sepiaEffect->Init(width, height);
@@ -343,7 +774,7 @@ int main() {
 			colorCorrectEffect = &colorCorrectEffectObject.emplace<ColorCorrectEffect>();
 			colorCorrectEffect->Init(width, height);
 		}
-		effects.push_back(colorCorrectEffect);
+		effects.push_back(colorCorrectEffect);*/
 
 		#pragma endregion 
 		//////////////////////////////////////////////////////////////////////////////////////////
@@ -383,7 +814,7 @@ int main() {
 			// use std::bind
 			keyToggles.emplace_back(GLFW_KEY_T, [&]() { cameraObject.get<Camera>().ToggleOrtho(); });
 
-			controllables.push_back(obj2);
+			//controllables.push_back(obj2);
 
 			keyToggles.emplace_back(GLFW_KEY_KP_ADD, [&]() {
 				BehaviourBinding::Get<SimpleMoveBehaviour>(controllables[selectedVao])->Enabled = false;
@@ -426,6 +857,56 @@ int main() {
 			if (frameIx >= 128)
 				frameIx = 0;
 
+			//Change theMuscle Car Rotation when it reaches reach a certain point
+			if (obj3.get<Transform>().GetLocalPosition().x >= 16.8)
+			{
+				obj3.get<Transform>().SetLocalRotation(90.0f, 0.0f, 270.0f);
+
+			}
+
+			if (obj3.get<Transform>().GetLocalPosition().y >= 17.8)
+			{
+				obj3.get<Transform>().SetLocalRotation(90.0f, 0.0f, 0.0f);
+
+			}
+
+		/*	if (obj3.get<Transform>().GetLocalPosition().x <= -16.8)
+			{
+				obj3.get<Transform>().SetLocalRotation(90.0f, 0.0f, 90.0f);
+
+			}*/
+
+			if (obj3.get<Transform>().GetLocalPosition().y >= 0.9 && obj3.get<Transform>().GetLocalPosition().x <= -16.8)
+			{
+				obj3.get<Transform>().SetLocalRotation(90.0f, 0.0f, 180.0f);
+
+			}
+
+			//Change the Police Car Rotation when it reaches a certain point
+			if (obj2.get<Transform>().GetLocalPosition().x >= 16.8)
+			{
+				obj2.get<Transform>().SetLocalRotation(90.0f, 0.0f, 270.0f);
+
+			}
+
+			if (obj2.get<Transform>().GetLocalPosition().y >= 17.8)
+			{
+				obj2.get<Transform>().SetLocalRotation(90.0f, 0.0f, 0.0f);
+
+			}
+
+		/*	if (obj2.get<Transform>().GetLocalPosition().x <= -16.8)
+			{
+				obj2.get<Transform>().SetLocalRotation(90.0f, 0.0f, 90.0f);
+
+			}*/
+
+			if (obj2.get<Transform>().GetLocalPosition().y >= 0.9 && obj2.get<Transform>().GetLocalPosition().x <= -16.8)
+			{
+				obj2.get<Transform>().SetLocalRotation(90.0f, 0.0f, 180.0f);
+
+			}
+
 			// We'll make sure our UI isn't focused before we start handling input for our game
 			if (!ImGui::IsAnyWindowFocused()) {
 				// We need to poll our key watchers so they can do their logic with the GLFW state
@@ -448,8 +929,9 @@ int main() {
 
 			// Clear the screen
 			basicEffect->Clear();
-			/*greyscaleEffect->Clear();
-			sepiaEffect->Clear();*/
+			//bloomEffect->Clear();
+			/////*greyscaleEffect->Clear();
+			////sepiaEffect->Clear();*/
 			for (int i = 0; i < effects.size(); i++)
 			{
 				effects[i]->Clear();
